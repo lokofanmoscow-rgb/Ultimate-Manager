@@ -262,14 +262,22 @@ function aiBidForUserPlayers() {
   if (G.user < 0) return;
   const uc = G.clubs[G.user];
   if (!windowOpen(uc.country)) return;
-  if (!R.chance(0.12)) return;
+  if (!R.chance(0.05) || G.day - G.startDay < 10) return;
   const cands = uc.players.map(P).filter((p) => p && !p.loan && (p.listed === 1 || p.ca > 110 || R.chance(0.1)));
   if (!cands.length) return;
   const p = R.pick(cands);
-  const buyers = G.clubs.filter((c) => c.id !== uc.id && c.league && c.rep >= uc.rep - 10 && c.rep <= uc.rep + 25 && c.fin.tBudget > p.value * 0.8);
+  const buyers = G.clubs.filter((c) => c.id !== uc.id && c.league && (p.listed === 2 ? c.rep < uc.rep && c.rep >= uc.rep - 30 : c.rep >= uc.rep - 10 && c.rep <= uc.rep + 25 && c.fin.tBudget > p.value * 0.8));
   if (!buyers.length) return;
   const buyer = R.pick(buyers);
   if (G.bids.some((b) => b.player === p.id && b.buyer === buyer.id && ['pending', 'accepted', 'countered'].includes(b.status))) return;
+  if (p.listed === 2) {
+    const lw = R.int(5, 10) * 10;
+    const bid: Bid = { id: G.nid.bid++, player: p.id, buyer: buyer.id, seller: uc.id, kind: 'loan', fee: 0, loanWage: lw, loanUntil: loanEndDefault(), status: 'pending', respond: G.day + 5, rounds: 1, user: 'sell' };
+    G.bids.push(bid);
+    addMsg({ from: buyer.name, subj: `Аренда ${fullName(p)}`, kind: 'offer', important: true, needs: true, data: { type: 'offer', bid: bid.id },
+      body: `«${buyer.name}» хочет взять ${fullName(p)} в аренду до ${fmtDate(bid.loanUntil!)} и готов оплачивать ${lw}% его зарплаты.` });
+    return;
+  }
   const fee = Math.round(p.value * R.range(0.75, p.listed === 1 ? 1.15 : 1.3) / 50000) * 50000;
   if (fee <= 0) return;
   const bid: Bid = { id: G.nid.bid++, player: p.id, buyer: buyer.id, seller: uc.id, kind: 'transfer', fee, status: 'pending', respond: G.day + 5, rounds: 1, user: 'sell' };
@@ -284,6 +292,13 @@ export function respondToOffer(bidId: number, action: 'accept' | 'reject' | 'cou
   const p = P(b.player);
   const buyer = G.clubs[b.buyer];
   if (action === 'reject') { b.status = 'rejected'; return `Предложение «${buyer.name}» отклонено.`; }
+  if (b.kind === 'loan') {
+    if (action !== 'accept') { b.status = 'rejected'; return 'Предложение об аренде отклонено.'; }
+    if (windowOpen(G.clubs[b.buyer].country)) { completeBid(b); return `${fullName(p)} отправлен в аренду в «${buyer.name}».`; }
+    b.status = 'contract';
+    b.completeDay = nextWindowDay(G.clubs[b.buyer].country);
+    return `Аренда согласована, оформление ${fmtDate(b.completeDay)}.`;
+  }
   if (action === 'counter') {
     const max = p.value * R.range(1.15, 1.5);
     if (ask! <= max && buyer.fin.tBudget >= ask! * 0.8) {
@@ -506,6 +521,7 @@ export function releasePlayer(p: Player, byUser: boolean) {
   p.club = -1;
   p.listed = undefined;
   p.status = 2;
+  p.joined = G.day;
   p.wage = roundWage(p.wage * 0.8);
 }
 

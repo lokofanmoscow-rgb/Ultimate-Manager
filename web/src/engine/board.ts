@@ -215,10 +215,31 @@ export function seasonReview(finalPos: number, relegated: boolean, promoted: boo
   }
   recalcConf();
   addMsg({ from: 'Совет директоров', subj: 'Итоги сезона', kind: 'board', important: true, body: `${text}\n\nТекущее доверие совета: ${G.board.conf}%.` });
+  maybeJobOffer();
   if (G.mgr.cEnd - G.day < 400 && G.board.conf >= 50) offerContract();
   else if (G.mgr.cEnd - G.day < 30) {
     // contract runs out and board doesn't extend
     if (G.board.conf < 50) sackManager('Совет директоров не стал продлевать истекающий контракт.');
+  }
+}
+
+export function maybeJobOffer() {
+  if (G.user < 0 || !R.chance(0.35)) return;
+  const uc = G.clubs[G.user];
+  const cands = G.clubs.filter((c) => c.league && c.id !== G.user && c.rep > uc.rep + 2 && c.rep <= G.mgr.rep + 18 && c.rep <= uc.rep + 20);
+  if (!cands.length) return;
+  const c = R.pick(cands);
+  addMsg({ from: c.name, subj: `Предложение работы от «${c.name}»`, kind: 'job', important: true, needs: true, data: { type: 'jobOffer', club: c.id },
+    body: `Руководство «${c.name}» впечатлено вашей работой и предлагает вам возглавить команду. Зарплата будет выше текущей. Хотите принять предложение?` });
+}
+
+export function checkManagerContract() {
+  if (G.user < 0 || G.day < G.mgr.cEnd) return;
+  if (G.board.conf >= 55) {
+    acceptContract(G.mgr.wage, 1);
+    addMsg({ from: 'Совет директоров', subj: 'Контракт продлён на год', kind: 'contract', important: true, body: 'Срок вашего контракта истёк, и совет директоров автоматически продлил его ещё на один год на прежних условиях.' });
+  } else {
+    sackManager('Срок вашего контракта истёк, и совет директоров решил не продлевать его.');
   }
 }
 

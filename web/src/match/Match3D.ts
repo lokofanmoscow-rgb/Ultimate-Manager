@@ -370,8 +370,8 @@ export class Match3D {
     let pos: THREE.Vector3, look: THREE.Vector3;
     if (this.camMode === 0) {
       const cx = Math.max(-40, Math.min(40, bx));
-      pos = new THREE.Vector3(cx * 0.92, 21 * z, 58 * z + bz * 0.25);
-      look = new THREE.Vector3(cx, 0, bz * 0.55);
+      pos = new THREE.Vector3(cx * 0.94, 15.5 * z, 47 * z + bz * 0.3);
+      look = new THREE.Vector3(cx, 0, bz * 0.6);
     } else if (this.camMode === 1) {
       pos = new THREE.Vector3(bx * 0.6, 62 * z, 26 * z);
       look = new THREE.Vector3(bx * 0.6, 0, bz * 0.3);

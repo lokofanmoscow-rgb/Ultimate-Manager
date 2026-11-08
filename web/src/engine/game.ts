@@ -11,7 +11,7 @@ import { applyResult, dailyRecovery } from './results';
 import { monthlyFinances, setSeasonBudgets, income } from './finance';
 import { monthlyDevelopment, retirements, youthIntake, weeklyMorale, playingTimeComplaints } from './dev';
 import { dailyTransfers, contractExpiry, contractReminders, sackAiManagers, windowOpen } from './transfers';
-import { setObjectives, monthlyBoard, seasonReview, generateVacancies, managerStartWage, defaultBoard } from './board';
+import { setObjectives, monthlyBoard, seasonReview, generateVacancies, managerStartWage, defaultBoard, checkManagerContract } from './board';
 import { addMsg, addNews, pendingDecisions } from './inbox';
 import { rolloverCoefficients } from './coef';
 import { ensureClubStaff, ensureFreeStaff } from './staff';
@@ -185,7 +185,7 @@ export function morningEvents() {
       for (const k in uc.famil) if (k !== f) uc.famil[k] = Math.max(20, uc.famil[k] - 0.5);
     }
   }
-  if (G.user >= 0) windowMessages();
+  if (G.user >= 0) { windowMessages(); checkManagerContract(); }
   if (md === 201) for (const a of ASSOCS) if (a.cal === 'CY') startCountrySeason(a.code, y);
   if (md === 315) youthIntake();
   if (md === 610) for (const a of ASSOCS) if (a.cal === 'AS') endCountrySeason(a.code, y - 1);
@@ -266,6 +266,7 @@ function trimSquad(c: typeof G.clubs[number]) {
     if (p.loan) continue;
     c.players = c.players.filter((x) => x !== p.id);
     p.club = -1;
+    p.joined = G.day;
   }
 }
 

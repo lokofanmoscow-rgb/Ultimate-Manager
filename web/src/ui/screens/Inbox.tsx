@@ -7,6 +7,7 @@ import { acceptContract } from '../../engine/board';
 import { acceptCounter, respondToOffer, listPlayer } from '../../engine/transfers';
 import { ContractModal, OfferModal } from './Deals';
 import { fullName } from '../../engine/player';
+import { takeOverClub } from '../../engine/game';
 
 export function InboxScreen({ first }: { first?: boolean }) {
   const nav = useNav();
@@ -98,7 +99,10 @@ function MessageView({ m, onClose }: { m: Msg; onClose: () => void }) {
         break;
       }
       case 'jobOffer':
-        actions = <><button className="btn primary" onClick={() => { done(); nav.go('jobs', { accept: d.club }); }}>Рассмотреть</button><button className="btn" onClick={() => done('Предложение отклонено')}>Отклонить</button></>;
+        actions = <><button className="btn primary" onClick={() => {
+          if (G.user >= 0) { const h = G.mgr.history[G.mgr.history.length - 1]; if (h) h.to = G.day; G.clubs[G.user].mgr = 'Исполняющий обязанности'; }
+          takeOverClub(d.club); done(`Вы возглавили «${G.clubs[d.club].name}»!`); nav.go('home');
+        }}>Принять предложение</button><button className="btn" onClick={() => done('Предложение отклонено')}>Отклонить</button></>;
         break;
       default:
         actions = <button className="btn primary" onClick={() => { done(); if (m.kind === 'sacked') nav.go('jobs'); }}>Понятно</button>;

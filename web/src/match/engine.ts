@@ -418,7 +418,14 @@ export class MatchEngine {
     this.pressureAndTackles(o);
     if (b.owner !== o.i) return;
     o.delay -= TICK;
-    if (o.delay <= 0) this.decide(o, false);
+    if (o.delay > 0.2 && !(o as any).dribbling) {
+      // defender closing in front: act now
+      for (const q of this.onPitch(1 - o.side)) {
+        if (q.isGK) continue;
+        if (dist(q.x, q.y, o.x, o.y) < 2.6 && this.prog(o.side, q.x) > this.prog(o.side, o.x)) { o.delay = 0; break; }
+      }
+    }
+    if (o.delay <= 0) { (o as any).dribbling = false; this.decide(o, false); }
   }
 
   inBox(side: number, x: number, y: number, own: boolean): boolean {
@@ -505,7 +512,7 @@ export class MatchEngine {
       const xgv = this.xg(side, o.x, o.y) * (pr < 1.5 ? 0.6 : pr < 3 ? 0.85 : 1.1);
       const longOk = dGoal > 22 ? this.eff(o, A.LON) >= 12 || ti.shootOnSight : true;
       const pc = this.pace(side);
-      if (xgv >= 0.022 && longOk && (pc < 1.0 || xgv > 0.22)) {
+      if (xgv >= 0.022 && longOk && (pc < 0.95 || xgv > 0.3)) {
         let w = 0.05 + xgv * 4.5 * (0.6 + o.role.shoot) * (ti.shootOnSight ? 1.4 : 1) * (ti.workIntoBox && dGoal > 18 ? 0.5 : 1) * (1 + (ti.mentality - 3) * 0.05);
         if (dGoal > 22) w *= 0.35 + this.eff(o, A.LON) / 30;
         options.push({ v: w, kind: 'shoot' });
@@ -528,7 +535,8 @@ export class MatchEngine {
       const rP = this.pressureOn(m);
       const lofted = d > 32 || risk > 0.55;
       const acc = clamp(0.97 - d * (0.004 + (20 - pas) * 0.0007) - (pr < 2 ? 0.08 : 0), 0.4, 0.98);
-      const s = (1 - risk * (lofted ? 0.6 : 0.95)) * acc * (rP < 2 ? 0.85 : 1);
+      let s = (1 - risk * 0.95) * acc * (rP < 2 ? 0.85 : 1);
+      if (lofted) s = clamp(0.3 + (rP - 1.5) * 0.09 + (pas - 10) * 0.015, 0.12, 0.8) * acc;
       const thr = this.threat(side, m.x, m.y);
       const dirW = 0.012 * (1 + (ti.passing - 2) * 0.35);
       let v = s * (0.3 + thr * 1.3 + gain * dirW) - (1 - s) * (0.35 + (1 - myProg / PW) * 0.4);
@@ -620,6 +628,7 @@ export class MatchEngine {
     o.tx = clamp(o.x + fx * (takeOn ? 7 : 10), 2, PW - 2);
     o.ty = clamp(ty, 2, PH - 2);
     o.delay = takeOn ? 0.9 : 0.8 + R.range(0, 0.6);
+    (o as any).dribbling = takeOn;
     if (takeOn) {
       const def = this.onPitch(1 - side).sort((a, b) => dist(a.x, a.y, o.x, o.y) - dist(b.x, b.y, o.x, o.y))[0];
       if (def && dist(def.x, def.y, o.x, o.y) < 3) this.duel(o, def, true);
@@ -696,6 +705,24 @@ export class MatchEngine {
 
   resolveInterception(o: MP, lofted: boolean) {
     const b = this.ball;
+    if (lofted) {
+      const rcv = b.receiver >= 0 ? this.ps[b.receiver] : null;
+      let best: MP | null = null, bs = -1e9;
+      for (const q of this.onPitch(1 - o.side)) {
+        const dq = dist(q.x, q.y, b.fx, b.fy);
+        const reach = dq / (this.speed(q) * 0.9) < b.fdur + 0.2;
+        if (!reach || dq > 7) continue;
+        if (q.isGK && !this.inBox(q.side, b.fx, b.fy, true)) continue;
+        const sc = (this.eff(q, A.HEA) + this.eff(q, A.JUM) + this.eff(q, A.ANT) + (q.isGK ? this.eff(q, A.AER) * 1.5 : 0)) * R.range(0.7, 1.3) - dq * 2.2;
+        if (sc > bs) { bs = sc; best = q; }
+      }
+      if (best && rcv) {
+        const dr = dist(rcv.x, rcv.y, b.fx, b.fy);
+        const rs = (this.eff(rcv, A.HEA) + this.eff(rcv, A.JUM) + this.eff(rcv, A.FIR) + this.eff(rcv, A.STR) * 0.5) * R.range(0.7, 1.3) - dr * 2.2 + 4;
+        if (bs > rs) { b.receiver = best.i; best.tx = b.fx; best.ty = b.fy; }
+      } else if (best && !rcv) { b.receiver = best.i; best.tx = b.fx; best.ty = b.fy; }
+      return;
+    }
     const T = b.fdur;
     const tProg = this.prog(o.side, b.fx);
     const tg = this.tight(o.side);
@@ -889,7 +916,7 @@ export class MatchEngine {
     const fin = kind === 'header' ? (this.eff(o, A.HEA) * 0.7 + this.eff(o, A.JUM) * 0.3) : kind === 'fk' ? this.eff(o, A.FRE) : kind === 'pen' ? this.eff(o, A.PEN) : (this.eff(o, A.FIN) * 0.6 + this.eff(o, A.TEC) * 0.2 + this.eff(o, A.CMP) * 0.2);
     const gkq = gk ? (this.eff(gk, A.REF) * 0.4 + this.eff(gk, A.ONE) * 0.2 + this.eff(gk, A.HAN) * 0.15 + this.eff(gk, A.POS) * 0.25) : 5;
     const imp = 1 + (o.hid[H.IMPM] - 10) * 0.005;
-    let pGoal = clamp(0.85 * xgv * (1 + (fin - 12) * 0.05) * (1 - (gkq - 12) * 0.035) * imp, 0.005, 0.9);
+    let pGoal = clamp(0.78 * xgv * (1 + (fin - 12) * 0.05) * (1 - (gkq - 12) * 0.035) * imp, 0.005, 0.9);
     if (kind === 'pen') pGoal = clamp(0.76 + (fin - 12) * 0.012 - (gkq - 12) * 0.008, 0.5, 0.93);
     const r = rnd();
     let outcome: 'goal' | 'save' | 'miss' | 'block' | 'post';
@@ -1030,7 +1057,7 @@ export class MatchEngine {
       }
       // goal-side contact => immediate take-on duel
       const front = this.prog(o.side, d.x) > this.prog(o.side, o.x) - 0.3;
-      if (front && dd < 1.35 && (this.tick - ((d as any).lastDuel || -99)) > 15) {
+      if (front && dd < 1.35 && (o as any).dribbling && (this.tick - ((d as any).lastDuel || -99)) > 15) {
         (d as any).lastDuel = this.tick;
         this.duel(o, d, true);
         return;
@@ -1078,7 +1105,7 @@ export class MatchEngine {
     let card = 0;
     const r = rnd();
     if (lastMan && r < 0.55) card = 2;
-    else if (r < 0.15 + (t.tactic.ti.tackle === 2 ? 0.05 : 0) + (lastMan ? 0.3 : 0)) card = 1;
+    else if (r < 0.21 + (t.tactic.ti.tackle === 2 ? 0.06 : 0) + (lastMan ? 0.3 : 0)) card = 1;
     else if (r > 0.996) card = 2;
     if (card === 1) {
       d.yellow++;
@@ -1423,7 +1450,7 @@ export class MatchEngine {
 }
 
 export function shownRating(raw: number) {
-  return clamp(6.3 + (raw - 6.2) * 0.42, 3, 10);
+  return clamp(6.4 + Math.tanh((raw - 6.2) / 6) * 3.1, 3, 10);
 }
 
 // util: distance from point to segment with param t

@@ -107,7 +107,13 @@ export function coachingQuality(club: Club): number {
 }
 
 export function monthlyDevelopment() {
-  for (const p of G.players) if (p && !p.retired) { developPlayer(p, 1); updateValue(p); }
+  for (const p of G.players) {
+    if (!p || p.retired) continue;
+    // long-term unattached players quit football
+    if (p.club < 0 && G.day - (p.joined || 0) > 420 && !G.shortlist.includes(p.id)) { retirePlayer(p); continue; }
+    developPlayer(p, 1);
+    updateValue(p);
+  }
 }
 
 /** June 30: retirements */
@@ -123,8 +129,9 @@ export function retirements() {
     else if (a >= 34) prob = 0.16;
     else if (a >= 32 && p.ca < 90) prob = 0.1;
     if (a < 40) prob *= p.ca > 150 ? 0.25 : p.ca > 130 ? 0.55 : 1;
-    if (p.club < 0 && a >= 31) prob += 0.35;
-    if (p.club < 0 && a >= 23 && p.ca < 60) prob += 0.5;
+    if (p.club < 0 && a >= 30) prob += 0.45;
+    if (p.club < 0 && p.ca < 75) prob += 0.5;
+    if (p.club < 0 && G.day - (p.joined || 0) > 300) prob += 0.6;
     if (prob > 0 && R.chance(prob)) retirePlayer(p);
   }
 }

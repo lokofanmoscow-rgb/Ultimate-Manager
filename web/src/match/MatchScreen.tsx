@@ -118,9 +118,9 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
       const m = modeRef.current;
       if (!pausedRef.current && stageRef.current === 'play') {
         // run engine ahead
-        const lead = m === 3 ? 40 : 220;
+        const lead = m === 3 ? 60 : 240;
         let steps = 0;
-        while (eng.tick < pt.current + lead && !eng.finished && eng.phase !== 'halftime' && steps < 2500) {
+        while (eng.tick < pt.current + lead && !eng.finished && eng.phase !== 'halftime' && steps < 4000) {
           eng.step();
           if (m !== 3) snapshot();
           steps++;
@@ -135,9 +135,9 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
           }
         }
         let adv: number;
-        if (m === 3) adv = dt * 1300;
+        if (m === 3) adv = dt * 2400;
         else if (inSeg) adv = dt * 10 * speedRef.current;
-        else adv = dt * 650;
+        else adv = dt * 2200;
         let target = pt.current + adv;
         if (!inSeg && m !== 3) target = Math.min(target, nextStart);
         target = Math.min(target, eng.tick);
