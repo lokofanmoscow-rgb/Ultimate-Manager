@@ -329,7 +329,7 @@ function estimateClock(eng: MatchEngine, t: number): number {
 }
 
 function TextView({ eng, events, score }: { eng: MatchEngine; events: MEvent[]; score: number[] }) {
-  const list = events.filter((e) => e.imp >= 1).slice(-30).reverse();
+  const list = events.filter((e) => e.imp >= 1 || e.type === 'flavor').slice(-34).reverse();
   return (
     <div className="textview">
       <div className="bigscore">{score[0]} : {score[1]}</div>

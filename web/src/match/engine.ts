@@ -438,7 +438,7 @@ export class MatchEngine {
     if (b.x >= 0 && b.x <= PW && b.y >= 0 && b.y <= PH) return false;
     const lastSide = b.lastSide;
     if (b.y < 0 || b.y > PH) {
-      this.setRestart('throw', 1 - lastSide, clamp(b.x, 1, PW - 1), b.y < 0 ? 0 : PH, 3);
+      this.setRestart('throw', 1 - lastSide, clamp(b.x, 1, PW - 1), b.y < 0 ? 0 : PH, 5.5);
       return true;
     }
     // byline
@@ -447,10 +447,10 @@ export class MatchEngine {
     if (lastSide === defSide) {
       const att = 1 - defSide;
       this.team(att).stats.corners++;
-      this.setRestart('corner', att, atX, b.y < 34 ? 0.5 : PH - 0.5, 4);
+      this.setRestart('corner', att, atX, b.y < 34 ? 0.5 : PH - 0.5, 8);
       this.event('corner', att, -1, `Угловой у ворот «${this.team(defSide).club.name}»`, 1);
     } else {
-      this.setRestart('goalkick', defSide, atX === 0 ? 5.5 : PW - 5.5, 34 + (b.y < 34 ? -9 : 9), 4);
+      this.setRestart('goalkick', defSide, atX === 0 ? 5.5 : PW - 5.5, 34 + (b.y < 34 ? -9 : 9), 8);
     }
     return true;
   }
@@ -677,7 +677,7 @@ export class MatchEngine {
     if (this.isOffside(o.side, m.x) && rnd() < 0.55) {
       this.team(o.side).stats.off++;
       this.event('offside', o.side, m.pid, `${m.name} в офсайде`, 1);
-      this.setRestart('fk', 1 - o.side, m.x, m.y, 3);
+      this.setRestart('fk', 1 - o.side, m.x, m.y, 5);
       return;
     }
     this.kickTo(o, tx, ty, speed, lofted ? clamp(d * 0.12, 2.5, 9) : 0, lofted ? 2 : 1, m.i);
@@ -695,12 +695,13 @@ export class MatchEngine {
     if (this.isOffside(o.side, m.x) && rnd() < 0.6) {
       this.team(o.side).stats.off++;
       this.event('offside', o.side, m.pid, `${m.name} убегает к воротам, но фиксируется офсайд`, 1);
-      this.setRestart('fk', 1 - o.side, m.x, m.y, 3);
+      this.setRestart('fk', 1 - o.side, m.x, m.y, 5);
       return;
     }
     const lofted = d > 28;
     this.kickTo(o, tx, ty, lofted ? 20 : 17, lofted ? 3 : 0, lofted ? 2 : 1, m.i);
     this.resolveInterception(o, lofted);
+    if (this.prog(o.side, tx) > 70 && rnd() < 0.5) this.event('flavor', o.side, o.pid, R.pick([`${o.name} отдаёт пас вразрез на ${m.name}`, `Острая передача ${o.name} — на ход ${m.name}`, `${o.name} ищет ${m.name} передачей за спину защитникам`]), 0);
     this.assistCand = o.i;
     m.tx = tx; m.ty = ty;
     o.st.kp += 0;
@@ -812,6 +813,8 @@ export class MatchEngine {
     this.kickTo(o, tx, ty, low ? 22 : 19, low ? 0.6 : ti.cross === 3 ? 6 : 3.5, 4, -1);
     this.ball.fkind = 5; // cross
     this.assistCand = o.i;
+    if (!setPiece) this.event('flavor', side, o.pid, R.pick([`${o.name} навешивает в штрафную`, `Подача ${o.name} с фланга`, `${o.name} простреливает в район одиннадцатиметровой отметки`]), 0);
+    else this.event('flavor', side, o.pid, `${o.name} исполняет стандарт`, 0);
     // attackers attack the ball
     const atts = this.onPitch(side).filter((m) => !m.isGK && m !== o).sort((a, b) => dist(a.x, a.y, tx, ty) - dist(b.x, b.y, tx, ty)).slice(0, 3);
     atts.forEach((m, k) => { m.tx = tx + R.gauss(0, 1.5 + k); m.ty = ty + R.gauss(0, 1.5 + k); });
@@ -1041,7 +1044,7 @@ export class MatchEngine {
     o.rating -= 0.04;
     this.event('miss', side, o.pid, s.xg > 0.25 ? `${name} не попадает в ворота с выгодной позиции!` : `${name} — мимо ворот`, s.xg > 0.25 ? 2 : 1);
     const gkSide = 1 - side;
-    this.setRestart('goalkick', gkSide, this.goalX(side) === 0 ? 5.5 : PW - 5.5, 34 + (this.ball.y < 34 ? -9 : 9), 5);
+    this.setRestart('goalkick', gkSide, this.goalX(side) === 0 ? 5.5 : PW - 5.5, 34 + (this.ball.y < 34 ? -9 : 9), 8);
   }
   celebrating: { side: number; until: number; scorer: number } | null = null;
 
@@ -1085,6 +1088,7 @@ export class MatchEngine {
       d.st.tk++;
       d.rating += 0.07;
       o.rating -= 0.03;
+      if (rnd() < 0.2) this.event('flavor', d.side, d.pid, R.pick([`${d.name} чисто отбирает мяч у ${o.name}`, `Отличный отбор ${d.name}`, `${d.name} в подкате выбивает мяч у ${o.name}`]), 0);
       if (rnd() < 0.6) this.gainPossession(d, 'tackle');
       else { this.ball.owner = -1; this.ball.vx = R.gauss(0, 4); this.ball.vy = R.gauss(0, 4); }
       if (rnd() < 0.00035 + (20 - this.eff(o, A.BAL)) * 0.00002 + Math.max(0, o.hid[H.INJP] - 8) * 0.00003 + (1 - o.cond) * 0.0006) this.injure(o);
@@ -1093,6 +1097,7 @@ export class MatchEngine {
       d.act = ACT.FALL;
       d.actT = 0.8;
       o.rating += 0.05;
+      if (attacking && rnd() < 0.35) this.event('flavor', o.side, o.pid, R.pick([`${o.name} красиво обыгрывает ${d.name}`, `Финт ${o.name} — ${d.name} остаётся на газоне`, `${o.name} уходит от ${d.name}`]), 0);
       o.delay = Math.min(o.delay, 0.3);
     }
   }
@@ -1123,15 +1128,15 @@ export class MatchEngine {
     if (rnd() < 0.0025) this.injure(o);
     if (inBox) {
       this.event('penalty', o.side, o.pid, `ПЕНАЛЬТИ! ${d.name} сбивает ${o.name} в штрафной!`, 3);
-      this.setRestart('penalty', o.side, this.fromProg(o.side, PW - 11), 34, 6);
+      this.setRestart('penalty', o.side, this.fromProg(o.side, PW - 11), 34, 14);
       this.positionPenalty(o.side);
       return;
     }
     const dg = dist(o.x, o.y, this.goalX(o.side), 34);
     const prog = this.prog(o.side, o.x);
-    if (dg < 32 && Math.abs(o.y - 34) < 18) this.setRestart('fk_direct', o.side, o.x, o.y, 6);
-    else if (prog > 70) this.setRestart('fk_cross', o.side, o.x, o.y, 6);
-    else this.setRestart('fk', o.side, o.x, o.y, 3);
+    if (dg < 32 && Math.abs(o.y - 34) < 18) this.setRestart('fk_direct', o.side, o.x, o.y, 11);
+    else if (prog > 70) this.setRestart('fk_cross', o.side, o.x, o.y, 10);
+    else this.setRestart('fk', o.side, o.x, o.y, 5);
   }
 
   positionPenalty(side: number) {
