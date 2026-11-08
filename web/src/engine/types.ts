@@ -152,7 +152,8 @@ export interface Club {
   tactic: Tactic;
   sel: Selection;
   mgr: string; // AI manager name
-  coef: number[]; // last 5 seasons UEFA points (most recent last)
+  coef: number[]; // last 5 completed seasons UEFA points (most recent last)
+  coefCur?: number; // current season points
   famil: Record<string, number>; // formation familiarity 0..100
   founded?: number;
   wageScale: number;
@@ -182,6 +183,7 @@ export interface Fixture {
   potm?: number;
   rh?: number[]; // player ratings home [pid, rating*10]...
   ra?: number[];
+  grp?: number; // group index (league split), -1 = euro league phase
   stats?: number[]; // [possH, shotsH, shotsA, sotH, sotA, xgH*100, xgA*100, cornH, cornA, foulH, foulA]
 }
 
