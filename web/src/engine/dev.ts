@@ -110,7 +110,7 @@ export function monthlyDevelopment() {
   for (const p of G.players) {
     if (!p || p.retired) continue;
     // long-term unattached players quit football
-    if (p.club < 0 && G.day - (p.joined || 0) > 420 && !G.shortlist.includes(p.id)) { retirePlayer(p); continue; }
+    if (p.club < 0 && G.day - (p.joined || 0) > 300 && !G.shortlist.includes(p.id)) { retirePlayer(p); continue; }
     developPlayer(p, 1);
     updateValue(p);
   }

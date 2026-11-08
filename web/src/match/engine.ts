@@ -464,6 +464,8 @@ export class MatchEngine {
     this.possSide = p.side;
     p.delay = 0.95 + R.range(0, 0.8) + (20 - this.eff(p, A.FIR)) * 0.02 - (this.team(p.side).tactic.ti.tempo - 2) * 0.12;
     if (prevSide !== p.side) {
+      this.lastLoss[prevSide] = this.tick;
+      this.lastWin[p.side] = this.tick;
       this.assistCand = -1;
       if (how === 'loose' && !p.isGK) { p.st.int++; p.rating += 0.03; }
       // counter-press / counter flags handled via shapes
@@ -538,7 +540,8 @@ export class MatchEngine {
       let s = (1 - risk * 0.95) * acc * (rP < 2 ? 0.85 : 1);
       if (lofted) s = clamp(0.3 + (rP - 1.5) * 0.09 + (pas - 10) * 0.015, 0.12, 0.8) * acc;
       const thr = this.threat(side, m.x, m.y);
-      const dirW = 0.012 * (1 + (ti.passing - 2) * 0.35);
+      const counterOn = ti.counter && this.tick - (this.lastWin[side] ?? -999) < 60;
+      const dirW = 0.012 * (1 + (ti.passing - 2) * 0.35) * (counterOn ? 2.2 : 1);
       let v = s * (0.3 + thr * 1.3 + gain * dirW) - (1 - s) * (0.35 + (1 - myProg / PW) * 0.4);
       if (gain < -5) v -= 0.05 * (ti.passing >= 3 ? 1.5 : 0.6);
       if (ti.playOut && myProg < 35 && d < 22) v += 0.05;
@@ -1272,6 +1275,9 @@ export class MatchEngine {
       // support: off-ball runs for attackers when team has ball
       if (inPos && !dead && b.owner >= 0) {
         const carrier = this.ps[b.owner];
+        if (carrier.side === side && ti.counter && this.tick - (this.lastWin[side] ?? -999) < 50) {
+          for (const q of this.onPitch(side)) if (!q.isGK && (q.pos === 'ST' || q.pos.startsWith('AM')) && q !== carrier) (q as any).runUntil = this.tick + 30;
+        }
         if (carrier.side === side) {
           for (const q of this.onPitch(side)) {
             if (q === carrier || q.isGK) continue;
@@ -1279,8 +1285,8 @@ export class MatchEngine {
               (q as any).runUntil = this.tick + 25;
             }
             if ((q as any).runUntil > this.tick) {
-              const dp = Math.min(PW - 4, this.prog(side, q.x) + 10);
-              q.tx = this.fromProg(side, dp);
+              const dp = Math.min(PW - 4, this.prog(side, q.x) + 10, oppLine - 0.4);
+              q.tx = this.fromProg(side, Math.max(dp, this.prog(side, q.tx)));
             }
           }
         }
@@ -1294,6 +1300,7 @@ export class MatchEngine {
     }
   }
   lastLoss: Record<number, number> = {};
+  lastWin: Record<number, number> = {};
 
   applyShapeTarget(p: MP) {
     const bx = (p as any).baseTx, by = (p as any).baseTy;

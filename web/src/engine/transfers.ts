@@ -266,7 +266,7 @@ function aiBidForUserPlayers() {
   const cands = uc.players.map(P).filter((p) => p && !p.loan && (p.listed === 1 || p.ca > 110 || R.chance(0.1)));
   if (!cands.length) return;
   const p = R.pick(cands);
-  const buyers = G.clubs.filter((c) => c.id !== uc.id && c.league && (p.listed === 2 ? c.rep < uc.rep && c.rep >= uc.rep - 30 : c.rep >= uc.rep - 10 && c.rep <= uc.rep + 25 && c.fin.tBudget > p.value * 0.8));
+  const buyers = G.clubs.filter((c) => c.id !== uc.id && c.league && windowOpen(c.country) && (p.listed === 2 ? c.rep < uc.rep && c.rep >= uc.rep - 30 : c.rep >= uc.rep - 10 && c.rep <= uc.rep + 25 && c.fin.tBudget > p.value * 0.8));
   if (!buyers.length) return;
   const buyer = R.pick(buyers);
   if (G.bids.some((b) => b.player === p.id && b.buyer === buyer.id && ['pending', 'accepted', 'countered'].includes(b.status))) return;
@@ -387,7 +387,6 @@ function aiTransferAttempt(c: Club) {
   }
   const bid: Bid = { id: G.nid.bid++, player: best.id, buyer: c.id, seller: best.club, kind: best.club < 0 ? 'free' : 'transfer', fee, status: 'accepted', respond: G.day, rounds: 1, user: 'none' };
   completeBid(bid);
-  G.bids.pop();
   c.fin.tBudget = Math.max(0, c.fin.tBudget - 0);
 }
 
@@ -404,7 +403,6 @@ function aiFreeAgentSignings() {
     const p = R.pick(cands);
     const bid: Bid = { id: G.nid.bid++, player: p.id, buyer: c.id, seller: -1, kind: 'free', fee: 0, status: 'accepted', respond: G.day, rounds: 1, user: 'none' };
     completeBid(bid);
-    G.bids.pop();
   }
 }
 
@@ -426,7 +424,6 @@ function aiLoans() {
   const { y, m } = ymd(G.day);
   const bid: Bid = { id: G.nid.bid++, player: p.id, buyer: d.id, seller: c.id, kind: 'loan', fee: 0, loanWage: R.int(50, 100), loanUntil: dayOf(m >= 7 ? y + 1 : y, 6, 30), status: 'accepted', respond: G.day, rounds: 1, user: 'none' };
   completeBid(bid);
-  G.bids.pop();
 }
 
 /** daily transfer-market processing */

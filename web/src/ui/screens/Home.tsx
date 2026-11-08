@@ -1,5 +1,5 @@
 import React from 'react';
-import { G } from '../../engine/state';
+import { G, IDX } from '../../engine/state';
 import { useNav, Crest, ClubName, Form, Bar } from '../common';
 import { nextUserFixture } from '../../engine/game';
 import { fmtDate, wdShort } from '../../engine/util';
@@ -32,7 +32,9 @@ export function HomeScreen() {
   const from = Math.max(0, Math.min(order.length - 7, myPos - 3));
   const injured = club.players.map((id) => G.players[id]!).filter((p) => p && p.inj && p.inj.until > G.day);
   const banned = club.players.map((id) => G.players[id]!).filter((p) => p && p.ban.some((b) => b > 0));
-  const recent = (Object.values(G.fixtures) as Fixture[]).filter((f) => f.played && (f.home === G.user || f.away === G.user)).sort((a, b) => b.day - a.day).slice(0, 5);
+  const mine = (IDX.clubFx.get(G.user) || []).map((id) => G.fixtures[id]).filter(Boolean) as Fixture[];
+  const recent = mine.filter((f) => f.played).sort((a, b) => b.day - a.day).slice(0, 5);
+  const upcoming = mine.filter((f) => !f.played).sort((a, b) => a.day - b.day).slice(0, 5);
   return (
     <div className="grid g2">
       <div>
@@ -51,6 +53,18 @@ export function HomeScreen() {
                 <div className="row"><button className="btn sm" onClick={() => nav.go('tactics')}>📋 Тактика и состав</button><button className="btn sm" onClick={() => nav.go('clubview', { id: nf.home === G.user ? nf.away : nf.home })}>🔍 Соперник</button></div>
               </div>
             ) : <div className="muted">Нет запланированных матчей</div>}
+          </div>
+        </div>
+        <div className="panel">
+          <div className="ph">Ближайшие матчи<span className="r"><button className="btn sm" onClick={() => nav.go('schedule')}>Все</button></span></div>
+          <div className="pb">
+            {upcoming.length ? upcoming.map((f) => (
+              <div key={f.id} className="row small" style={{ padding: '3px 0' }}>
+                <span className="muted nowrap" style={{ width: 64 }}>{fmtDate(f.day).replace(/ \d{4}$/, '')}</span>
+                <span className="grow ellipsis"><ClubName id={f.home === G.user ? f.away : f.home} size={16} /> <span className="muted">({f.neutral ? 'Н' : f.home === G.user ? 'Д' : 'Г'})</span></span>
+                <span className="muted ellipsis" style={{ maxWidth: 140 }}>{G.comps[f.comp]?.short}</span>
+              </div>
+            )) : <div className="muted">Нет матчей</div>}
           </div>
         </div>
         <div className="panel">

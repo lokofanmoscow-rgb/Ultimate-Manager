@@ -25,9 +25,11 @@ export function InboxScreen({ first }: { first?: boolean }) {
   return (
     <div className="grid" style={{ gridTemplateColumns: cur ? 'minmax(0, 340px) minmax(0, 1fr)' : '1fr' }}>
       <div className="panel" style={{ alignSelf: 'start' }}>
-        <div className="ph">Входящие
-          <span className="r seg"><button className={filter === 'all' ? 'on' : ''} onClick={() => setFilter('all')}>Все</button><button className={filter === 'needs' ? 'on' : ''} onClick={() => setFilter('needs')}>Требуют решения</button></span>
-          <button className="btn sm" onClick={() => { G.inbox.forEach((m) => (m.read = true)); refresh(); }}>✓ Все прочитаны</button>
+        <div className="ph" style={{ flexWrap: 'wrap' }}>Входящие
+          <span className="r row" style={{ gap: 6 }}>
+            <span className="seg"><button className={filter === 'all' ? 'on' : ''} onClick={() => setFilter('all')}>Все</button><button className={filter === 'needs' ? 'on' : ''} onClick={() => setFilter('needs')}>Решения</button></span>
+            <button className="btn sm" onClick={() => { G.inbox.forEach((m) => (m.read = true)); refresh(); }}>✓</button>
+          </span>
         </div>
         <div style={{ maxHeight: '72vh', overflowY: 'auto' }}>
           {msgs.map((m) => (
