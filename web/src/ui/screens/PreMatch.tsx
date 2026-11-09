@@ -9,6 +9,8 @@ import { leagueComp } from '../../engine/board';
 import { compName } from './Home';
 import { isAvailable } from '../../engine/player';
 import { compTypeOf } from '../../engine/tactics';
+import { PressModal, pendingPress } from './Press';
+import type { Msg } from '../../engine/types';
 
 export const MODES = ['Полный матч', 'Расширенные моменты', 'Ключевые моменты', 'Только текст', 'Мгновенный результат'];
 
@@ -16,7 +18,9 @@ export function PreMatch({ fxId, onStart }: { fxId: number; onStart: (mode: numb
   const nav = useNav();
   const f = G.fixtures[fxId];
   const [mode, setMode] = useState(G.settings.mode);
+  const [press, setPress] = useState<Msg | null>(null);
   if (!f) return null;
+  const pm = pendingPress(fxId);
   const club = G.clubs[G.user];
   const oppId = f.home === G.user ? f.away : f.home;
   const opp = G.clubs[oppId];
@@ -59,7 +63,8 @@ export function PreMatch({ fxId, onStart }: { fxId: number; onStart: (mode: numb
         <hr />
         <div className="field"><label>Режим просмотра</label><Seg options={MODES} value={mode} onChange={setMode} /></div>
         {unavailable.length > 0 && <div className="chip r" style={{ marginBottom: 8 }}>В стартовом составе есть травмированные/дисквалифицированные игроки</div>}
-        <div className="row"><div className="grow" /><button className="continue mday" onClick={start}>⚽ Начать матч</button></div>
+        <div className="row">{pm && <button className="btn" onClick={() => setPress(pm)}>🎤 Пресс-конференция</button>}<div className="grow" /><button className="continue mday" onClick={start}>⚽ Начать матч</button></div>
+        {press && <PressModal m={press} onClose={() => setPress(null)} />}
       </div></div>
       <TacticsScreen embedded />
     </div>

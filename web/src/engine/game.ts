@@ -1,4 +1,5 @@
 // Main game loop: daily processing, calendar events, season transitions, career management.
+import { preMatchPress, expirePress } from './press';
 import type { Comp, Fixture, Manager } from './types';
 import { G, R, P, IDX, rebuildIndexes, syncRng } from './state';
 import { createWorld, START_YEAR, wageScaleFor, assignShirts, assignSquadStatus, tierFactor } from './world';
@@ -185,7 +186,7 @@ export function morningEvents() {
       for (const k in uc.famil) if (k !== f) uc.famil[k] = Math.max(20, uc.famil[k] - 0.5);
     }
   }
-  if (G.user >= 0) { windowMessages(); checkManagerContract(); oppositionReport(); }
+  if (G.user >= 0) { windowMessages(); checkManagerContract(); oppositionReport(); expirePress(); }
   if (md === 201) for (const a of ASSOCS) if (a.cal === 'CY') startCountrySeason(a.code, y);
   if (md === 315) youthIntake();
   if (md === 610) for (const a of ASSOCS) if (a.cal === 'AS') endCountrySeason(a.code, y - 1);
@@ -475,6 +476,7 @@ function oppositionReport() {
   if (G.user < 0) return;
   const f = (IDX.clubFx.get(G.user) || []).map((id) => G.fixtures[id]).find((x) => x && !x.played && x.day === G.day + 1);
   if (!f) return;
+  preMatchPress(f);
   const oppId = f.home === G.user ? f.away : f.home;
   const opp = G.clubs[oppId];
   const recent = (IDX.clubFx.get(oppId) || []).map((id) => G.fixtures[id]).filter((x) => x && x.played).sort((a, b) => b.day - a.day).slice(0, 5);

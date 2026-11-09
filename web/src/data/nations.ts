@@ -142,6 +142,12 @@ export const NATIONS: NationDef[] = [
   N('BFA', 'Буркина-Фасо', 'h:ef2b2d,009e49', 'fa'),
   N('JAM', 'Ямайка', 'x:009b3a,fed100', 'en'),
   N('PAN', 'Панама', 'q:ffffff,da121a', 'la'),
+  N('HON', 'Гондурас', 'h:0073cf,ffffff,0073cf', 'la'),
+  N('BOL', 'Боливия', 'h:d52b1e,f9e300,007934', 'la'),
+  N('HAI', 'Гаити', 'h:00209f,d21034', 'fa'),
+  N('NIG', 'Нигер', 'h:e05206,ffffff,0db02b', 'fa'),
+  N('TJK', 'Таджикистан', 'h:cc0000,ffffff,006600', 'uz'),
+  N('TKM', 'Туркменистан', 'v:00843d,00843d', 'uz'),
 ];
 export const NATION: Record<string, NationDef> = Object.fromEntries(NATIONS.map((n) => [n.code, n]));
 

@@ -8,6 +8,7 @@ import { acceptCounter, respondToOffer, listPlayer } from '../../engine/transfer
 import { ContractModal, OfferModal } from './Deals';
 import { fullName } from '../../engine/player';
 import { takeOverClub } from '../../engine/game';
+import { PressModal } from './Press';
 
 export function InboxScreen({ first }: { first?: boolean }) {
   const nav = useNav();
@@ -40,6 +41,7 @@ export function InboxScreen({ first }: { first?: boolean }) {
                 <div className="small muted ellipsis">{m.from} · {fmtDate(m.day)}</div>
               </div>
               {m.needs && !m.done && <span className="chip r">Решение</span>}
+              {m.kind === 'press' && !m.done && <span className="chip">🎤</span>}
             </div>
           ))}
           {!msgs.length && <div className="pb muted">Сообщений нет</div>}
@@ -57,7 +59,12 @@ function MessageView({ m, onClose }: { m: Msg; onClose: () => void }) {
   const done = (text?: string) => { m.done = true; if (text) nav.toast(text); refresh(); };
   const d = m.data || {};
   let actions: React.ReactNode = null;
-  if (m.needs && !m.done) {
+  if (d.type === 'press' && !m.done) {
+    actions = <>
+      <button className="btn primary" onClick={() => setModal(<PressModal m={m} onClose={() => setModal(null)} />)}>🎤 Провести пресс-конференцию</button>
+      <button className="btn" onClick={() => done('На пресс-конференцию отправлен ассистент')}>Отправить ассистента</button>
+    </>;
+  } else if (m.needs && !m.done) {
     switch (d.type) {
       case 'mgrContract':
         actions = <><button className="btn primary" onClick={() => { acceptContract(d.wage, d.years); done('Контракт продлён!'); }}>Подписать</button><button className="btn" onClick={() => done('Вы отклонили предложение')}>Отказаться</button></>;
@@ -120,6 +127,7 @@ function MessageView({ m, onClose }: { m: Msg; onClose: () => void }) {
         {pid != null && G.players[pid] && <div style={{ marginTop: 10 }}><button className="btn sm" onClick={() => nav.openPlayer(pid)}>👤 Профиль игрока</button></div>}
         {actions && <div className="row wrap" style={{ marginTop: 14 }}>{actions}</div>}
         {m.needs && m.done && <div className="small muted" style={{ marginTop: 10 }}>✓ Решение принято</div>}
+        {d.type === 'press' && m.done && <div className="small muted" style={{ marginTop: 10 }}>✓ Пресс-конференция состоялась</div>}
       </div>
       {modal}
     </div>

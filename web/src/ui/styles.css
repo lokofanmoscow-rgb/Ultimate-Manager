@@ -198,3 +198,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .kv > :nth-child(odd) { color: var(--muted); }
 .scoreline { font-size: 26px; font-weight: 900; letter-spacing: 2px; }
 .sticky-top { position: sticky; top: 0; z-index: 2; background: var(--bg); }
+.press-done { padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.press-q { padding-top: 10px; }
+.press-text { font-size: 16px; margin-top: 4px; line-height: 1.35; }
+.press-opt { justify-content: flex-start; text-align: left; white-space: normal; padding: 10px 12px; }

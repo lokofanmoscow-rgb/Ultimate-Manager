@@ -1,4 +1,5 @@
 // Board of directors: objectives, confidence, ultimatums, sacking, contract.
+import { pressAftermath, postMatchPress } from './press';
 import type { Board, Club, Fixture } from './types';
 import { G, R } from './state';
 import { addMsg, addNews } from './inbox';
@@ -71,7 +72,7 @@ export function boardAfterMatch(f: Fixture) {
   const e = expPts(club, opp, isHome && !f.neutral);
   let k = comp?.kind === 'league' ? 2.2 : comp?.kind === 'euro' ? 1.4 : 1.2;
   if (comp?.kind === 'super') k = 0.5;
-  let d = (pts - e) * k;
+  let d = (pts - e) * k + pressAftermath(f, pts);
   // knockout elimination
   if ((comp?.kind === 'cup' || comp?.kind === 'euro') && f.tie != null && f.played) {
     const tie = comp.ties?.find((t) => t.id === f.tie);
@@ -110,6 +111,7 @@ export function boardAfterMatch(f: Fixture) {
     G.board.warned = true;
     addMsg({ from: 'Совет директоров', subj: 'Встреча с советом директоров', kind: 'board', important: true, needs: true, body: 'Совет директоров обеспокоен последними результатами команды. Нам нужно увидеть улучшения в ближайших матчах. Мы рассчитываем, что вы исправите ситуацию.', data: { type: 'warning' } });
   }
+  postMatchPress(f);
 }
 
 export function recalcConf() {

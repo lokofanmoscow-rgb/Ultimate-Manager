@@ -41,6 +41,11 @@ export function wageScaleFor(country: string, tier: number, rep: number): number
   return Math.max(0.05, w * tierFactor(tier) * (0.3 + Math.pow(rep / 100, 1.5) * 1.2));
 }
 
+// real final tables of season 2025/26 (where known)
+const LAST_TABLE: Record<string, string[]> = {
+  RUS1: ['Зенит', 'Краснодар', 'Локомотив Москва', 'Спартак Москва', 'ЦСКА', 'Балтика', 'Динамо Москва', 'Рубин', 'Ахмат', 'Ростов', 'Крылья Советов', 'Оренбург', 'Акрон', 'Динамо Махачкала'],
+};
+
 const BONUS: Record<string, number> = { ENG1: 12, ENG2: 6, ENG3: 3, ESP1: 6, GER1: 6, ITA1: 6, FRA1: 3, ESP2: 2, GER2: 2, ITA2: 1 };
 export function starterCA(rep: number, leagueId: string | null): number {
   return clamp(28 + 1.45 * rep + (leagueId ? BONUS[leagueId] || 0 : 0), 42, 168);
@@ -60,15 +65,26 @@ function genSquad(club: Club, leagueId: string | null, foreign: number) {
   const stars = (STARS[club.name] || '').split('\n').map((l) => l.trim()).filter(Boolean);
   const template = TEMPLATE.slice(0, leagueId && leagueId.endsWith('1') ? 26 : 24);
   const used = new Array(template.length).fill(false);
+  // reference level for real players listed without an ability estimate
+  const known = stars.map((l) => parseInt(l.split(';')[4], 10)).filter((x) => !isNaN(x)).sort((x, y) => x - y);
+  const refCA = known.length >= 4 ? known[Math.floor(known.length / 2)] : sCA;
   // real players
   for (const line of stars) {
     const [name, pos, by, nat, ca, pa] = line.split(';');
     const parts = name.split(' ');
     const ln = parts.length > 1 ? parts.slice(1).join(' ') : parts[0];
     const fn = parts.length > 1 ? parts[0] : '';
+    // '?' = unknown birth year / ability: squad player of plausible age and level
+    const byN = by === '?' ? START_YEAR - R.int(18, 25) : parseInt(by, 10);
+    let caN = parseInt(ca, 10);
+    if (isNaN(caN)) {
+      const age = START_YEAR - byN;
+      const foreign = nat !== club.country;
+      caN = clamp(Math.round(refCA - (foreign ? 4 : 0) - (age <= 19 ? 24 : age <= 21 ? 16 : age <= 24 ? 11 : 8) + R.gauss(0, 4)), 40, 170);
+    }
     const p = genPlayer({
-      nat: NATION[nat] ? nat : club.country, pos: pos as PosCode, ca: parseInt(ca, 10), pa: pa ? parseInt(pa, 10) : undefined,
-      age: START_YEAR - parseInt(by, 10), birthYear: parseInt(by, 10), club: club.id, wageScale: club.wageScale, seasonYear: START_YEAR,
+      nat: NATION[nat] ? nat : club.country, pos: pos as PosCode, ca: caN, pa: pa ? parseInt(pa, 10) : undefined,
+      age: START_YEAR - byN, birthYear: byN, club: club.id, wageScale: club.wageScale, seasonYear: START_YEAR,
       fn, ln, real: true, rep: club.rep,
     });
     // calibrate CA precisely for real players: genPlayer recalculates; keep target if close
@@ -194,7 +210,12 @@ export function createWorld(seed: number): Game {
     const tables: number[][] = [];
     for (const ld of a.leagues) {
       const ids = g.clubs.filter((c) => c.league === ld.id).map((c) => c.id);
-      ids.sort((x, y) => g.clubs[y].rep + R.gauss(0, 4) - (g.clubs[x].rep + R.gauss(0, 4)));
+      const real = LAST_TABLE[ld.id];
+      if (real) {
+        // real final order of the previous season; promoted clubs go to the bottom
+        const pos = (id: number) => { const k = real.indexOf(g.clubs[id].name); return k < 0 ? 100 + id : k; };
+        ids.sort((x, y) => pos(x) - pos(y));
+      } else ids.sort((x, y) => g.clubs[y].rep + R.gauss(0, 4) - (g.clubs[x].rep + R.gauss(0, 4)));
       tables.push(ids);
     }
     const top = tables[0] || [];
