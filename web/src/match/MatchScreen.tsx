@@ -10,6 +10,7 @@ import { fullName } from '../engine/player';
 import { POS_RU, ROLE_BY_ID, rolesFor, DUTY_RU } from '../engine/attrs';
 import type { Tactic } from '../engine/types';
 import './match.css';
+import { StadiumSound } from './sound';
 
 const MODES = ['Полный матч', 'Расширенные', 'Ключевые', 'Текст'];
 const SPEEDS = [1, 2, 4, 8, 16];
@@ -49,6 +50,19 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
   const [stage, setStage] = useState<'play' | 'ht' | 'ft'>(instant ? 'ft' : 'play');
   const stageRef = useRef<'play' | 'ht' | 'ft'>(instant ? 'ft' : 'play');
   const handled = useRef(new Set<number>());
+  const replay = useRef<{ from: number; to: number; resume: number; cam: number } | null>(null);
+  const [replayOn, setReplayOn] = useState(false);
+  const snd = useRef<StadiumSound | null>(null);
+  const soundTick = useRef(-1);
+  const [soundOn, setSoundOn] = useState(G.settings.sound !== false);
+  useEffect(() => {
+    if (instant) return;
+    const st = new StadiumSound();
+    st.enabled = G.settings.sound !== false;
+    st.start();
+    snd.current = st;
+    return () => { st.stop(); snd.current = null; };
+  }, []);
   const [toast, setToast] = useState<string | null>(null);
   const finishedRef = useRef(instant);
 
@@ -126,7 +140,16 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const m = modeRef.current;
-      if (!pausedRef.current && stageRef.current === 'play') {
+      if (!pausedRef.current && stageRef.current === 'play' && replay.current) {
+        const rp = replay.current;
+        pt.current = Math.min(rp.to, pt.current + dt * 10 * 0.6);
+        if (pt.current >= rp.to) {
+          pt.current = rp.resume;
+          if (r3d.current) r3d.current.camMode = rp.cam;
+          replay.current = null;
+          setReplayOn(false);
+        }
+      } else if (!pausedRef.current && stageRef.current === 'play') {
         // run engine ahead
         const maxAdv = m === 3 ? dt * 2400 : dt * 2200;
         const lead = Math.max(m === 3 ? 60 : 240, maxAdv + 30);
@@ -161,7 +184,23 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
             handled.current.add(e.tick * 100 + e.type.length);
             if (e.type === 'injury' && e.side === userSide) { setPausedBoth(true); setPanel('subs'); setToast('Травма! Сделайте замену.'); }
             if (e.type === 'red' && e.side === userSide) { setToast('Удаление! Перестройте тактику.'); }
+            if (e.type === 'goal' && m !== 3 && r3d.current && snaps.current.has(e.tick - 90)) {
+              // goal replay from the close camera
+              replay.current = { from: e.tick - 90, to: e.tick + 12, resume: pt.current, cam: r3d.current.camMode };
+              pt.current = e.tick - 90;
+              r3d.current.camMode = 3;
+              setReplayOn(true);
+              break;
+            }
           }
+        }
+        // stadium sound for events passed at playback time
+        if (snd.current && !replay.current) {
+          for (const e of eng.events) {
+            if (e.tick <= soundTick.current || e.tick > pt.current) continue;
+            if ((inSeg && m !== 3) || e.type === 'goal' || e.type === 'ft' || e.type === 'ht') snd.current.onEvent(e.type, e.imp);
+          }
+          soundTick.current = pt.current;
         }
         // halftime / fulltime
         if (eng.phase === 'halftime' && pt.current >= eng.tick - 0.5) { stageRef.current = 'ht'; setStage('ht'); }
@@ -197,7 +236,8 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
   }, []);
 
   // ---- derived display ----
-  const shownEvents = eng.events.filter((e) => e.tick <= pt.current);
+  const shownT = replay.current ? replay.current.resume : pt.current;
+  const shownEvents = eng.events.filter((e) => e.tick <= shownT);
   const score = (() => {
     let h = 0, a = 0;
     for (const e of shownEvents) if (e.type === 'goal') { if (e.side === 0) h++; else a++; }
@@ -212,7 +252,7 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
     return e ? e.min : '1';
   })();
   const clockText = (() => {
-    const t = pt.current;
+    const t = shownT;
     // approximate clock: use engine half starts
     const sec = estimateClock(eng, t);
     const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
@@ -270,7 +310,8 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
       </div>
       <div className="view" ref={containerRef}>
         {mode === 3 && <TextView eng={eng} events={shownEvents} score={score} />}
-        {mode !== 3 && ff && stage === 'play' && <div className="ff">⏩ {clockText}</div>}
+        {mode !== 3 && ff && stage === 'play' && !replayOn && <div className="ff">⏩ {clockText}</div>}
+        {replayOn && <div className="ff" style={{ background: '#e5484d' }}>⟲ ПОВТОР <button className="mb" style={{ marginLeft: 8, padding: '2px 8px' }} onClick={() => { if (replay.current) { pt.current = replay.current.resume; if (r3d.current) r3d.current.camMode = replay.current.cam; replay.current = null; setReplayOn(false); } }}>Пропустить</button></div>}
         {mode !== 3 && !ff && holder && <div className="holder">{holder.shirt}. {holder.name}</div>}
         {paused && stage === 'play' && <div className="pausebig" onClick={() => setPausedBoth(false)}>⏸ Пауза — нажмите, чтобы продолжить</div>}
         {toast && <div className="mtoast" onAnimationEnd={() => setToast(null)}>{toast}</div>}
@@ -284,6 +325,7 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
         <select className="mb" value={mode} onChange={(e) => setMode(+e.target.value)}>{MODES.map((m, i) => <option key={i} value={i}>{m}</option>)}</select>
         {mode !== 3 && <button className="mb" onClick={() => setCam((cam + 1) % CAMS.length)}>🎥 {CAMS[cam]}</button>}
         {mode !== 3 && <button className="mb" onClick={() => { if (r3d.current) r3d.current.zoom = r3d.current.zoom > 0.75 ? r3d.current.zoom - 0.2 : 1.4; }}>🔍</button>}
+        <button className="mb" onClick={() => { const v = !soundOn; setSoundOn(v); G.settings.sound = v; snd.current?.setEnabled(v); }}>{soundOn ? '🔊' : '🔇'}</button>
         <div style={{ flex: 1 }} />
         <button className="mb" onClick={() => { setPanel(panel === 'tac' ? null : 'tac'); }}>📋 Тактика</button>
         <button className="mb" onClick={() => { setPanel(panel === 'subs' ? null : 'subs'); }}>🔄 Замены ({eng.teams[userSide].subsLeft})</button>

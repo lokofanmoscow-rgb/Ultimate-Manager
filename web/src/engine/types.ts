@@ -378,7 +378,7 @@ export interface Game {
   nid: { p: number; s: number; fx: number; msg: number; bid: number; tie: number };
   euroHolders: { UCL?: number; UEL?: number; UECL?: number };
   training: { focus: number; intensity: number };
-  settings: { mode: number; speed: number; cam: number; autosave: boolean };
+  settings: { mode: number; speed: number; cam: number; autosave: boolean; sound?: boolean };
   shortlist: number[];
   scouted: Record<number, number>; // player id -> knowledge 0..100
   scoutTasks: { id: number; target: string; until: number; country?: string }[];
