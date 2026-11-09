@@ -21,14 +21,23 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
   const fx = G.fixtures[fxId];
   const userSide = fx.home === G.user ? 0 : 1;
   const engRef = useRef<MatchEngine | null>(null);
-  if (!engRef.current) engRef.current = new MatchEngine(fx, userSide);
+  const instant = initMode === 4;
+  if (!engRef.current) {
+    const e = new MatchEngine(fx, instant ? -1 : userSide);
+    if (instant) {
+      e.teams[userSide].ai = true; // assistant manages subs during instant simulation
+      let guard = 0;
+      while (!e.finished && guard++ < 200000) { e.step(); if (e.phase === 'halftime') e.resume(); }
+    }
+    engRef.current = e;
+  }
   const eng = engRef.current;
   const containerRef = useRef<HTMLDivElement>(null);
   const r3d = useRef<Match3D | null>(null);
   const snaps = useRef(new Map<number, Float32Array>());
-  const pt = useRef(0);
-  const [mode, setMode] = useState(initMode);
-  const modeRef = useRef(initMode);
+  const pt = useRef(instant ? eng.tick : 0);
+  const [mode, setMode] = useState(instant ? 3 : initMode);
+  const modeRef = useRef(instant ? 3 : initMode);
   const [speedIdx, setSpeedIdx] = useState(1);
   const speedRef = useRef(2);
   const [paused, setPaused] = useState(false);
@@ -37,11 +46,11 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
   const [, setFrame] = useState(0);
   const [ff, setFf] = useState(false);
   const [cam, setCam] = useState(0);
-  const [stage, setStage] = useState<'play' | 'ht' | 'ft'>('play');
-  const stageRef = useRef<'play' | 'ht' | 'ft'>('play');
+  const [stage, setStage] = useState<'play' | 'ht' | 'ft'>(instant ? 'ft' : 'play');
+  const stageRef = useRef<'play' | 'ht' | 'ft'>(instant ? 'ft' : 'play');
   const handled = useRef(new Set<number>());
   const [toast, setToast] = useState<string | null>(null);
-  const finishedRef = useRef(false);
+  const finishedRef = useRef(instant);
 
   const setPausedBoth = (v: boolean) => { pausedRef.current = v; setPaused(v); };
   useEffect(() => { modeRef.current = mode; }, [mode]);

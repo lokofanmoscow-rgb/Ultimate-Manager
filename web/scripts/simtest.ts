@@ -59,3 +59,5 @@ const gz = await new Response(new Blob([json]).stream().pipeThrough(new Compress
 console.log('serialize+deserialize ms', Date.now() - t2, 'compact', (json.length/1e6).toFixed(1), 'MB gz', (gz.size/1e6).toFixed(2), 'MB players back', back.players.length, back.players[5]?.a?.length);
 
 console.log('save size', (json.length / 1e6).toFixed(1), 'MB');
+console.log('awards', JSON.stringify(G.flags.awards?.['RUS1:2026']), JSON.stringify(G.flags.awards?.['ENG1:2026']));
+console.log('user budget', G.clubs[zen.id].fin.tBudget, 'inbox kinds', Array.from(new Set(G.inbox.map((m) => m.kind))).join(','));

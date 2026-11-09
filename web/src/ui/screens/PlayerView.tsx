@@ -8,6 +8,7 @@ import { NATION } from '../../data/nations';
 import { OfferModal, ContractModal } from './Deals';
 import { listPlayer, releasePlayer } from '../../engine/transfers';
 import { knowledge, assignScout } from '../../engine/scouting';
+import { TALKS, talkToPlayer } from '../../engine/talk';
 
 const TECH: number[] = [A.COR, A.CRO, A.DRI, A.FIN, A.FIR, A.FRE, A.HEA, A.LON, A.LTH, A.MAR, A.PAS, A.PEN, A.TCK, A.TEC];
 const MENT: number[] = [A.AGG, A.ANT, A.BRA, A.CMP, A.CNT, A.DEC, A.DET, A.FLA, A.LDR, A.OTB, A.POS, A.TEA, A.VIS, A.WOR];
@@ -74,6 +75,10 @@ export function PlayerScreen({ id }: { id: number }) {
               <button className="btn" onClick={() => { listPlayer(p, p.listed === 1 ? 0 : 1); refresh(); nav.toast(p.listed === 1 ? 'Выставлен на трансфер' : 'Снят с трансфера'); }}>{p.listed === 1 ? 'Снять с трансфера' : 'На трансфер'}</button>
               <button className="btn" onClick={() => { listPlayer(p, p.listed === 2 ? 0 : 2); refresh(); nav.toast(p.listed === 2 ? 'Доступен для аренды' : 'Снят с аренды'); }}>{p.listed === 2 ? 'Снять с аренды' : 'Отдать в аренду'}</button>
               <select className="input" style={{ width: 'auto' }} value={p.status} onChange={(e) => { p.status = +e.target.value; refresh(); }}>{STATUS_NAMES.map((s, i) => <option key={i} value={i}>{s}</option>)}</select>
+              <select className="input" style={{ width: 'auto' }} value="" onChange={(e) => { if (e.target.value !== '') { nav.toast(talkToPlayer(p, +e.target.value)); refresh(); } }}>
+                <option value="">💬 Поговорить...</option>
+                {TALKS.map((t, i) => <option key={i} value={i}>{t}</option>)}
+              </select>
               <button className="btn danger" onClick={() => { const cost = Math.round(p.wage * Math.max(0, (p.cEnd - G.day) / 7) * 0.6); if (confirm(`Расторгнуть контракт? Компенсация: ${fmtMoney(cost)}`)) { releasePlayer(p, true); refresh(); nav.back(); } }}>Расторгнуть</button>
             </>}
             {!own && !onLoanHere && G.user >= 0 && <>

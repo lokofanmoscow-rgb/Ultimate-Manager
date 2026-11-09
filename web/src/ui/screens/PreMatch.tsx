@@ -10,7 +10,7 @@ import { compName } from './Home';
 import { isAvailable } from '../../engine/player';
 import { compTypeOf } from '../../engine/tactics';
 
-export const MODES = ['Полный матч', 'Расширенные моменты', 'Ключевые моменты', 'Только текст'];
+export const MODES = ['Полный матч', 'Расширенные моменты', 'Ключевые моменты', 'Только текст', 'Мгновенный результат'];
 
 export function PreMatch({ fxId, onStart }: { fxId: number; onStart: (mode: number) => void }) {
   const nav = useNav();
@@ -32,7 +32,7 @@ export function PreMatch({ fxId, onStart }: { fxId: number; onStart: (mode: numb
       if (!confirm('В составе есть недоступные игроки. Ассистент заменит их. Продолжить?')) return;
       club.sel = { ...autoPick(club, ct, { rotate: false }), auto: false };
     }
-    G.settings.mode = mode;
+    G.settings.mode = mode === 4 ? G.settings.mode : mode;
     refresh();
     onStart(mode);
   };

@@ -185,7 +185,7 @@ export function morningEvents() {
       for (const k in uc.famil) if (k !== f) uc.famil[k] = Math.max(20, uc.famil[k] - 0.5);
     }
   }
-  if (G.user >= 0) { windowMessages(); checkManagerContract(); }
+  if (G.user >= 0) { windowMessages(); checkManagerContract(); oppositionReport(); }
   if (md === 201) for (const a of ASSOCS) if (a.cal === 'CY') startCountrySeason(a.code, y);
   if (md === 315) youthIntake();
   if (md === 610) for (const a of ASSOCS) if (a.cal === 'AS') endCountrySeason(a.code, y - 1);
@@ -429,6 +429,7 @@ export function endCountrySeason(code: string, label: number) {
     if (newTier < oldTier) addNews(`«${c.name}» повышается в классе: ${lid ? LEAGUE_DEF[lid].name : ''}`, 'promo');
     else addNews(`«${c.name}» покидает ${LEAGUE_DEF[a.leagues[oldTier - 1].id].name}`, 'releg');
   }
+  seasonAwards(code, label);
   ct.lastFinal = { season: label, table: orders, cupWinner: cw?.season === label ? cw.winner : ct.lastFinal?.cupWinner, cupRunner: cw?.season === label ? cw.runner : undefined };
   // user review
   if (G.user >= 0 && G.clubs[G.user].country === code) {
@@ -442,6 +443,50 @@ export function endCountrySeason(code: string, label: number) {
       seasonReview(pos, relegated, promoted, pos === 1);
     }
   }
+}
+
+function seasonAwards(code: string, label: number) {
+  const ld = ASSOC[code].leagues[0];
+  const lc = G.comps[`L:${ld.id}:${label}`];
+  if (!lc) return;
+  const entries = Object.entries(lc.scorers).map(([pid, v]) => ({ pid: +pid, g: v[0], a: v[1], apps: v[2] }));
+  if (!entries.length) return;
+  const topScorer = entries.slice().sort((x, y) => y.g - x.g || y.a - x.a)[0];
+  const rounds = lc.totalRounds || 30;
+  const rated = entries.filter((e) => e.apps >= rounds * 0.55).map((e) => ({ ...e, r: G.players[e.pid] ? (G.players[e.pid]!.st.ratN ? G.players[e.pid]!.st.rat / G.players[e.pid]!.st.ratN : 0) : 0 }));
+  const best = rated.sort((x, y) => y.r + y.g * 0.01 - (x.r + x.g * 0.01))[0];
+  const young = rated.filter((e) => G.players[e.pid] && G.day - G.players[e.pid]!.dob < 22 * 365.25).sort((x, y) => y.r - x.r)[0];
+  const nm = (pid: number) => (G.players[pid] ? fullName(G.players[pid]!) : '—');
+  const cl = (pid: number) => (G.players[pid] && G.players[pid]!.club >= 0 ? G.clubs[G.players[pid]!.club].name : '');
+  const lines: string[] = [];
+  if (topScorer && G.players[topScorer.pid]) { lines.push(`⚽ Лучший бомбардир: ${nm(topScorer.pid)} («${cl(topScorer.pid)}») — ${topScorer.g} ${plural(topScorer.g, 'гол', 'гола', 'голов')}`); G.players[topScorer.pid]!.rep = clamp(G.players[topScorer.pid]!.rep + 3, 1, 100); }
+  if (best && G.players[best.pid]) { lines.push(`🏅 Игрок сезона: ${nm(best.pid)} («${cl(best.pid)}»), средняя оценка ${best.r.toFixed(2)}`); G.players[best.pid]!.rep = clamp(G.players[best.pid]!.rep + 4, 1, 100); }
+  if (young && G.players[young.pid] && young.pid !== best?.pid) lines.push(`🌟 Лучший молодой игрок: ${nm(young.pid)} («${cl(young.pid)}»)`);
+  (G.flags.awards ||= {})[`${ld.id}:${label}`] = lines;
+  if (['ENG', 'ESP', 'GER', 'ITA', 'FRA', 'RUS'].includes(code) || (G.user >= 0 && G.clubs[G.user].country === code)) {
+    for (const l of lines) addNews(`${ld.name}: ${l.replace(/^\S+ /, '')}`, 'award');
+  }
+  if (G.user >= 0 && G.clubs[G.user].country === code && lines.length) {
+    addMsg({ from: 'Пресс-служба лиги', subj: `Итоги сезона: ${ld.name}`, kind: 'award', body: `Названы лучшие игроки сезона ${seasonLabel(lc)}:\n\n${lines.join('\n')}` });
+  }
+}
+
+function oppositionReport() {
+  if (G.user < 0) return;
+  const f = (IDX.clubFx.get(G.user) || []).map((id) => G.fixtures[id]).find((x) => x && !x.played && x.day === G.day + 1);
+  if (!f) return;
+  const oppId = f.home === G.user ? f.away : f.home;
+  const opp = G.clubs[oppId];
+  const recent = (IDX.clubFx.get(oppId) || []).map((id) => G.fixtures[id]).filter((x) => x && x.played).sort((a, b) => b.day - a.day).slice(0, 5);
+  const form = recent.map((x) => { const h = x.home === oppId; const gf = h ? x.hg : x.ag, ga = h ? x.ag : x.hg; return gf > ga ? 'В' : gf < ga ? 'П' : 'Н'; }).join(' ');
+  const ps = opp.players.map((id) => G.players[id]!).filter(Boolean);
+  const stars = ps.slice().sort((a, b) => b.ca - a.ca).slice(0, 3).map((p) => `${fullName(p)} (${p.st.gls} г.)`).join(', ');
+  const inj = ps.filter((p) => p.inj && p.inj.until > G.day).map((p) => fullName(p));
+  const comp = G.comps[f.comp];
+  addMsg({
+    from: 'Ассистент', subj: `Отчёт о сопернике: ${opp.name}`, kind: 'report', data: { club: oppId },
+    body: `Завтра: ${comp?.name || ''} (${f.stage}), ${f.neutral ? 'нейтральное поле' : f.home === G.user ? 'дома' : 'в гостях'}.\n\n• Схема соперника: ${opp.tactic.formation}\n• Форма: ${form || 'нет данных'}\n• Ключевые игроки: ${stars}\n• Травмированы: ${inj.length ? inj.join(', ') : 'нет'}\n\nТренер соперника: ${opp.mgr}.`,
+  });
 }
 
 // ---------- continue ----------

@@ -95,7 +95,7 @@ export function matchdayIncome(home: number, attendance: number) {
 export function setSeasonBudgets(c: Club) {
   const bal = c.fin.balance;
   const rev = c.fin.tvYear + c.fin.comYear;
-  c.fin.tBudget = Math.max(0, Math.round((bal * 0.45 + rev * 0.04) / 100000) * 100000);
+  c.fin.tBudget = Math.max(0, Math.round((bal * 0.4 + rev * (0.05 + (c.rep / 100) * 0.2)) / 100000) * 100000);
   if (bal < 0) c.fin.tBudget = 0;
   const wb = wageBill(c);
   c.fin.wBudget = Math.round(Math.max(wb * 1.04, Math.min(wb * 1.15, (rev * 0.7) / 52)));

@@ -230,7 +230,7 @@ export const ASSOCS: AssocDef[] = [
     imports: 'NED,FRA,GER,DEN,NOR,SWE,ISL,JPN,KOR,NGA,GHA,CIV,SEN,MLI,COD,CMR,MAR,BRA,ARG,COL,ESP,POR,SRB,CRO,UKR,USA,CAN,GEO,ISR,AUT,SUI',
   },
   {
-    code: 'TUR', rank: 9, pts: 48, cal: 'AS', wealth: 0.32, start: '0808', end: '0524', winter: ['1229', '0112'], sup: 2,
+    code: 'TUR', rank: 9, pts: 48, cal: 'AS', wealth: 0.4, start: '0808', end: '0524', winter: ['1229', '0112'], sup: 2,
     leagues: [
       L('TUR', 1, 'Суперлига', 18, 'rr2', 0, 3, [82, 52], 0.5),
       L('TUR', 2, 'Первая лига Турции', 20, 'rr2', 2, 4, [52, 36], 0.3, { upPO: '3-6:1:1N' }),
@@ -239,7 +239,7 @@ export const ASSOCS: AssocDef[] = [
     imports: 'BRA,ARG,POR,ESP,FRA,NED,BEL,GER,SRB,CRO,BIH,MKD,ALB,KOS,AZE,GEO,NGA,GHA,CIV,SEN,MLI,CMR,MAR,ALG,TUN,COL,URU,POL,CZE,NOR,DEN,SWE,ITA,UKR,ENG,USA,KOR,JPN',
   },
   {
-    code: 'RUS', rank: 10, pts: 47, cal: 'AS', wealth: 0.45, start: '0719', end: '0530', winter: ['1208', '0228'], sup: 2,
+    code: 'RUS', rank: 10, pts: 47, cal: 'AS', wealth: 0.62, start: '0719', end: '0530', winter: ['1208', '0228'], sup: 2,
     leagues: [
       L('RUS', 1, 'Российская Премьер-лига', 16, 'rr2', 0, 2, [78, 54], 0.4, { rpo: '13v4:2,14v3:2' }),
       L('RUS', 2, 'Первая лига', 18, 'rr2', 2, 3, [52, 38], 0.12),

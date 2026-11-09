@@ -147,7 +147,7 @@ export function setupFinances(club: Club, tier: number) {
     months: [],
     debt: 0,
   };
-  club.fin.tBudget = Math.round(Math.max(0, club.fin.balance * R.range(0.25, 0.55)) / 100000) * 100000;
+  club.fin.tBudget = Math.round(Math.max(0, club.fin.balance * R.range(0.3, 0.5) + revenue * (0.05 + (club.rep / 100) * 0.2)) / 100000) * 100000;
   void tier;
 }
 
