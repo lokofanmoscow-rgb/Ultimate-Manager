@@ -79,6 +79,9 @@ export function PlayerScreen({ id }: { id: number }) {
                 <option value="">💬 Поговорить...</option>
                 {TALKS.map((t, i) => <option key={i} value={i}>{t}</option>)}
               </select>
+              <select className="input" style={{ width: 'auto' }} value={p.tf || 0} onChange={(e) => { p.tf = +e.target.value || undefined; refresh(); nav.toast('Индивидуальный план тренировок обновлён'); }}>
+                {['🏋 Индивид. тренировка: как у команды', 'Атака', 'Оборона', 'Тактика', 'Физподготовка', 'Стандарты'].map((t, i) => <option key={i} value={i}>{i ? `🏋 ${t}` : t}</option>)}
+              </select>
               <button className="btn danger" onClick={() => { const cost = Math.round(p.wage * Math.max(0, (p.cEnd - G.day) / 7) * 0.6); if (confirm(`Расторгнуть контракт? Компенсация: ${fmtMoney(cost)}`)) { releasePlayer(p, true); refresh(); nav.back(); } }}>Расторгнуть</button>
             </>}
             {!own && !onLoanHere && G.user >= 0 && <>

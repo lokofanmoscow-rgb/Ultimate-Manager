@@ -1,0 +1,34 @@
+import { generateWorld } from '../src/engine/game';
+import { G } from '../src/engine/state';
+import { MatchEngine } from '../src/match/engine';
+import { newFixture } from '../src/engine/comps';
+await generateWorld(777);
+const byName = (n: string) => G.clubs.find((c) => c.name === n)!.id;
+const cnt: Record<string, number> = {};
+const inc = (k: string) => (cnt[k] = (cnt[k] || 0) + 1);
+const f = newFixture('test', 'Тест', 1, G.day + 1, byName('Реал Мадрид'), byName('Хетафе'));
+const e: any = new MatchEngine(f, -1);
+const origArrive = e.arrive.bind(e);
+e.arrive = () => {
+  const b = e.ball;
+  const kind = b.fkind;
+  if (kind === 3 || kind === 5) return origArrive();
+  const side = b.lastSide;
+  const zone = (() => { const p = e.prog(side, b.fx); return p < 35 ? 'own' : p < 70 ? 'mid' : 'fin'; })();
+  const tag = `s${side}:${kind === 1 ? 'g' : 'l'}:${zone}`;
+  const rcv = b.receiver >= 0 ? e.ps[b.receiver] : null;
+  const before = e.ball.owner;
+  origArrive();
+  const now = e.ball.owner;
+  const ok = now >= 0 && e.ps[now].side === side;
+  inc(tag + (ok ? ':ok' : rcv && rcv.side !== side ? ':int' : ':lost'));
+  void before;
+};
+const origDecide = e.decide.bind(e);
+e.decide = (o: any, sp: boolean) => { inc(`s${o.side}:decide`); return origDecide(o, sp); };
+const origDuel = e.duel.bind(e);
+e.duel = (o: any, d: any, att: boolean) => { inc(`s${o.side}:${att ? 'takeon' : 'tackled'}`); return origDuel(o, d, att); };
+let g = 0;
+while (!e.finished && g++ < 100000) { e.step(); if (e.phase === 'halftime') e.resume(); }
+console.log(Object.entries(cnt).sort().map(([k, v]) => `${k}: ${v}`).join('\n'));
+console.log('score', e.teams[0].score, e.teams[1].score, 'poss', e.teams[0].stats.poss, e.teams[1].stats.poss, 'TI RM', JSON.stringify(e.teams[0].tactic.ti), 'TI GET', JSON.stringify(e.teams[1].tactic.ti));

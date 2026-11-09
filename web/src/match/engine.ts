@@ -61,6 +61,7 @@ export class MatchEngine {
   pauseReq: string | null = null;
   shapeTimer = 0;
   expShots: [number, number] = [12, 12];
+  teamQ: [number, number] = [12, 12];
   rawXg: [number, number] = [0, 0];
   lastShotTick = -100;
   assistCand: number = -1;
@@ -94,7 +95,8 @@ export class MatchEngine {
     const homeAdv = fx.neutral ? 1 : 1.12, k = 0.024;
     const lh = 1.28 * homeAdv * Math.exp(k * ((hr.att * 0.6 + hr.mid * 0.4) - (ar.def * 0.65 + ar.gk * 0.15 + ar.mid * 0.2)));
     const la = (1.28 / homeAdv) * Math.exp(k * ((ar.att * 0.6 + ar.mid * 0.4) - (hr.def * 0.65 + hr.gk * 0.15 + hr.mid * 0.2)));
-    this.expShots = [clamp(lh / 0.12, 4, 24), clamp(la / 0.12, 4, 24)];
+    this.expShots = [clamp(lh / 0.135, 4, 22), clamp(la / 0.135, 4, 22)];
+    this.teamQ = [hr.ovr / 10, ar.ovr / 10];
     for (const t of this.teams) {
       if (!t.ai) continue;
       const me = t.side === 0 ? hr.ovr : ar.ovr, them = t.side === 0 ? ar.ovr : hr.ovr;
@@ -514,7 +516,7 @@ export class MatchEngine {
       const xgv = this.xg(side, o.x, o.y) * (pr < 1.5 ? 0.6 : pr < 3 ? 0.85 : 1.1);
       const longOk = dGoal > 22 ? this.eff(o, A.LON) >= 12 || ti.shootOnSight : true;
       const pc = this.pace(side);
-      if (xgv >= 0.022 && longOk && (pc < 0.95 || xgv > 0.3)) {
+      if (xgv >= 0.022 && longOk && (pc < 0.9 || xgv > 0.36)) {
         let w = 0.05 + xgv * 4.5 * (0.6 + o.role.shoot) * (ti.shootOnSight ? 1.4 : 1) * (ti.workIntoBox && dGoal > 18 ? 0.5 : 1) * (1 + (ti.mentality - 3) * 0.05);
         if (dGoal > 22) w *= 0.35 + this.eff(o, A.LON) / 30;
         options.push({ v: w, kind: 'shoot' });
@@ -555,8 +557,10 @@ export class MatchEngine {
         const tx = this.fromProg(side, Math.min(PW - 3, this.prog(side, m.x) + lead)), ty = m.y + (34 - m.y) * 0.15;
         const offs = this.isOffside(side, m.x);
         let risk2 = 0;
-        for (const q of opp) risk2 = Math.max(risk2, clamp((5 - dist(q.x, q.y, tx, ty)) / 5, 0, 1));
-        const s2 = clamp(0.25 + vis / 40 + pas / 40 - risk2 * 0.5, 0.1, 0.85) * (offs ? 0.2 : 1);
+        for (const q of opp) risk2 += Math.max(0, (7 - dist(q.x, q.y, tx, ty)) / 7) * 0.55;
+        for (const q of opp) { const sg = segDist(o.x, o.y, tx, ty, q.x, q.y); if (sg.t > 0.1 && sg.d < 2.5) risk2 += 0.25; }
+        risk2 = clamp(risk2, 0, 1);
+        const s2 = clamp(0.15 + vis / 50 + pas / 50 - risk2 * 0.7, 0.05, 0.8) * (offs ? 0.2 : 1);
         const v2 = s2 * (0.25 + this.threat(side, tx, ty) * 2.0) - (1 - s2) * 0.2 + o.role.through * 0.08;
         options.push({ v: v2, kind: 'through', m, tx, ty });
       }
@@ -660,7 +664,8 @@ export class MatchEngine {
   passError(o: MP, d: number, lofted: boolean): number {
     const pr = this.pressureOn(o);
     const pas = this.eff(o, A.PAS), tec = this.eff(o, A.TEC);
-    return d * (0.025 + (20 - (pas * 0.7 + tec * 0.3)) * 0.0045) * (pr < 1.5 ? 1.6 : pr < 3 ? 1.2 : 1) * (lofted ? 1.25 : 1);
+    const qd = clamp(1 + (this.teamQ[1 - o.side] - this.teamQ[o.side]) * 0.1, 0.6, 1.8);
+    return d * (0.025 + (20 - (pas * 0.7 + tec * 0.3)) * 0.0045) * (pr < 1.5 ? 1.6 * qd : pr < 3 ? 1.2 * qd : 1) * (lofted ? 1.25 : 1);
   }
 
   doPass(o: MP, m: MP, lofted: boolean) {
@@ -730,9 +735,11 @@ export class MatchEngine {
     const T = b.fdur;
     const tProg = this.prog(o.side, b.fx);
     const tg = this.tight(o.side);
-    const pressF = (() => { const ti2 = this.team(1 - o.side).tactic.ti; return 1 + (ti2.press - 1) * 0.12 + (ti2.loe - 1) * (tProg < 50 ? 0.15 : 0); })();
-    const pq = clamp(1 + (12 - (this.eff(o, A.PAS) * 0.7 + this.eff(o, A.TEC) * 0.3)) * 0.05, 0.6, 1.6);
-    const zoneF = (this.inBox(1 - o.side, b.fx, b.fy, true) ? 1.6 * tg : tProg >= 70 ? 1.2 * Math.sqrt(tg) : tProg >= 50 ? 0.95 : 0.75) * pressF * pq;
+    const pressF = (() => { const ti2 = this.team(1 - o.side).tactic.ti; return 1 + (ti2.press - 1) * 0.16 + (ti2.loe - 1) * (tProg < 50 ? 0.25 : 0); })();
+    const pq = clamp(1 + (12.5 - (this.eff(o, A.PAS) * 0.5 + this.eff(o, A.TEC) * 0.25 + this.eff(o, A.DEC) * 0.25)) * 0.085, 0.5, 1.8);
+    const qd = clamp(1 + (this.teamQ[1 - o.side] - this.teamQ[o.side]) * 0.09, 0.6, 1.8);
+    const highPress = this.team(1 - o.side).tactic.ti.loe === 2 && tProg < 50;
+    const zoneF = (this.inBox(1 - o.side, b.fx, b.fy, true) ? 1.6 * tg : tProg >= 70 ? 1.2 * Math.sqrt(tg) : tProg >= 50 ? 0.95 : highPress ? 0.95 : 0.75) * pressF * pq * qd;
     let best: { q: MP; f: number } | null = null;
     for (const q of this.onPitch(1 - o.side)) {
       if (q.stun > 0) continue;
@@ -771,7 +778,8 @@ export class MatchEngine {
       if (rcv.side === b.lastSide) {
         // controlled?
         const pr = this.pressureOn(rcv);
-        const pc = clamp(0.95 + (this.eff(rcv, A.FIR) - 10) * 0.008 - (pr < 1.2 ? 0.1 : 0) - (b.fkind === 2 ? 0.05 : 0), 0.6, 0.99);
+        const qd = clamp(1 + (this.teamQ[1 - rcv.side] - this.teamQ[rcv.side]) * 0.12, 0.5, 2);
+        const pc = clamp(0.95 + (this.eff(rcv, A.FIR) - 10) * 0.008 - (pr < 2.5 ? (2.5 - pr) * 0.07 * qd : 0) - (b.fkind === 2 ? 0.05 : 0), 0.55, 0.99);
         if (rnd() < pc) {
           if (passer) { passer.st.pc++; this.team(passer.side).stats.pc++; passer.rating += 0.012; }
           this.gainPossession(rcv, 'pass');
@@ -1236,7 +1244,7 @@ export class MatchEngine {
         const carrier = this.ps[b.owner];
         const zone = [14, 20, 28, 36][ti.press] + (ti.counterPress && this.tick - (this.lastLoss[side] || 0) < 50 ? 12 : 0);
         const lineOk = this.prog(side, carrier.x) > 105 - ([45, 62, 85][ti.loe]);
-        const n = ti.press >= 2 ? 2 : 1;
+        const n = ti.press >= 3 ? 3 : ti.press >= 2 ? 2 : 1;
         const near = this.onPitch(side).filter((q) => !q.isGK).sort((a, c) => dist(a.x, a.y, carrier.x, carrier.y) - dist(c.x, c.y, carrier.x, carrier.y)).slice(0, n);
         const gx0 = this.ownGoalX(side);
         for (const q of near) {
@@ -1261,17 +1269,21 @@ export class MatchEngine {
           void k;
           engaged++;
         }
-        // marking: defenders track nearby attackers goal-side
-        for (const q of this.onPitch(side).filter((x) => !x.isGK && x.pos !== 'ST')) {
-          let tgt: MP | null = null, bd = 9;
+        // marking: track nearby opponents goal-side; in a high press everyone marks man-to-man
+        const hp = ti.loe === 2 && this.prog(side, carrier.x) > 50;
+        const marked = new Set<number>();
+        for (const q of near) marked.add(carrier.i);
+        for (const q of this.onPitch(side).filter((x) => !x.isGK && (hp || x.pos !== 'ST') && !near.includes(x))) {
+          let tgt: MP | null = null, bd = hp ? 17 : 9;
           for (const a of this.onPitch(1 - side)) {
-            if (a.isGK) continue;
+            if (a.isGK || marked.has(a.i)) continue;
             const dd = dist(a.x, a.y, q.tx, q.ty);
             if (dd < bd) { bd = dd; tgt = a; }
           }
+          if (tgt) marked.add(tgt.i);
           if (tgt && q.st) {
             const gx = this.ownGoalX(side);
-            const mk = 0.45 + this.eff(q, A.MAR) / 60;
+            const mk = (hp ? 0.7 : 0.45) + this.eff(q, A.MAR) / 60;
             q.tx = q.tx * (1 - mk) + (tgt.x + (gx - tgt.x) * 0.08) * mk;
             q.ty = q.ty * (1 - mk) + tgt.y * mk;
           }

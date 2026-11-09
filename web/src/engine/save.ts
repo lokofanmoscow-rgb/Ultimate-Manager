@@ -6,7 +6,7 @@ import { computePR } from './player';
 const enc = (a: number[]) => String.fromCharCode(...a.map((v) => 48 + Math.max(0, Math.min(70, Math.round(v)))));
 const dec = (s: string) => Array.from(s, (ch) => ch.charCodeAt(0) - 48);
 
-const PKEYS = ['id', 'fn', 'ln', 'nat', 'dob', 'h', 'wt', 'fl', 'fr', 'pos', 'a', 'hid', 'ca', 'pa', 'club', 'loan', 'wage', 'cEnd', 'rc', 'value', 'rep', 'cond', 'sharp', 'morale', 'inj', 'ban', 'yc', 'form', 'st', 'hist', 'status', 'listed', 'shirt', 'real', 'retired', 'joined', 'unhappy', 'wantsOut', 'devAcc', 'lastGame', 'intl'] as const;
+const PKEYS = ['id', 'fn', 'ln', 'nat', 'dob', 'h', 'wt', 'fl', 'fr', 'pos', 'a', 'hid', 'ca', 'pa', 'club', 'loan', 'wage', 'cEnd', 'rc', 'value', 'rep', 'cond', 'sharp', 'morale', 'inj', 'ban', 'yc', 'form', 'st', 'hist', 'status', 'listed', 'shirt', 'real', 'retired', 'joined', 'unhappy', 'wantsOut', 'devAcc', 'lastGame', 'intl', 'tf'] as const;
 const STKEYS = ['apps', 'sub', 'gls', 'ast', 'rat', 'ratN', 'yc', 'rc', 'min', 'cs', 'potm'] as const;
 
 function packPlayer(p: Player): any[] {

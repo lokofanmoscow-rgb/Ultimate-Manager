@@ -55,7 +55,7 @@ export function developPlayer(p: Player, months = 1) {
   if (target === p.ca) return;
   const pi = mainPi(p);
   const w = POS_W[pi];
-  const focus = club && club.id === G.user ? FOCUS_ATTRS[G.training.focus] : undefined;
+  const focus = club && club.id === G.user ? (p.tf ? FOCUS_ATTRS[p.tf] : FOCUS_ATTRS[G.training.focus]) : undefined;
   let guard = 0;
   if (target > p.ca) {
     while (calcCAp(p) < target && guard++ < 40) {

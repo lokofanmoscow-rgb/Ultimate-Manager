@@ -50,6 +50,7 @@ export interface Player {
   devAcc: number;
   lastGame?: number; // day of last appearance
   intl?: number; // caps
+  tf?: number; // individual training focus
 }
 
 export type StaffRole = 'ASS' | 'COACH' | 'GKC' | 'FIT' | 'SCOUT' | 'PHYSIO' | 'ANALYST' | 'YOUTH';

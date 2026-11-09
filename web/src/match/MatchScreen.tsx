@@ -7,7 +7,7 @@ import { applyResult } from '../engine/results';
 import { progressComp } from '../engine/game';
 import { MENTALITY, PASSING, TEMPO, WIDTH, DLINE, LOE, PRESS, TACKLE, FORMATION_KEYS, FORMATIONS, makeTactic } from '../engine/tactics';
 import { fullName } from '../engine/player';
-import { POS_RU } from '../engine/attrs';
+import { POS_RU, ROLE_BY_ID, rolesFor, DUTY_RU } from '../engine/attrs';
 import type { Tactic } from '../engine/types';
 import './match.css';
 
@@ -119,6 +119,7 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
   useEffect(() => {
     let raf = 0;
     let last = performance.now();
+    let lastUi = 0;
     snapshot();
     const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
@@ -127,9 +128,10 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
       const m = modeRef.current;
       if (!pausedRef.current && stageRef.current === 'play') {
         // run engine ahead
-        const lead = m === 3 ? 60 : 240;
+        const maxAdv = m === 3 ? dt * 2400 : dt * 2200;
+        const lead = Math.max(m === 3 ? 60 : 240, maxAdv + 30);
         let steps = 0;
-        while (eng.tick < pt.current + lead && !eng.finished && eng.phase !== 'halftime' && steps < 4000) {
+        while (eng.tick < pt.current + lead && !eng.finished && eng.phase !== 'halftime' && steps < 6000) {
           eng.step();
           if (m !== 3) snapshot();
           steps++;
@@ -188,7 +190,7 @@ export function MatchScreen({ fxId, mode: initMode, onDone }: { fxId: number; mo
           r3d.current.update(list, { x: a[0] + (b[0] - a[0]) * f, y: a[1] + (b[1] - a[1]) * f, z: a[2] + (b[2] - a[2]) * f }, dt);
         }
       }
-      setFrame((x) => (x + 1) % 1000000);
+      if (now - lastUi > 70) { lastUi = now; setFrame((x) => (x + 1) % 1000000); }
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
@@ -453,6 +455,24 @@ function TacticPanel({ eng, side, onClose }: { eng: MatchEngine; side: number; o
       <div className="field"><label>Линия прессинга</label><Seg options={LOE} value={ti.loe} onChange={(v) => set({ loe: v })} /></div>
       <div className="field"><label>Прессинг</label><Seg options={PRESS} value={ti.press} onChange={(v) => set({ press: v })} /></div>
       <div className="field"><label>Отбор</label><Seg options={TACKLE} value={ti.tackle} onChange={(v) => set({ tackle: v })} /></div>
+      <h3 style={{ marginTop: 8 }}>Роли игроков</h3>
+      {eng.onPitch(side).slice().sort((a, b) => a.slot - b.slot).map((p) => {
+        const sh = FORMATIONS[tac.formation][p.slot];
+        if (!sh) return null;
+        const cur = tac.slots[p.slot];
+        return (
+          <div key={p.i} className="row small" style={{ padding: '3px 0' }}>
+            <span style={{ width: 34 }} className="muted">{POS_RU[sh.pos]}</span>
+            <span className="grow ellipsis">{p.name}</span>
+            <select className="input" style={{ width: 150, padding: '4px 6px' }} value={cur.role} onChange={(e) => { const slots = tac.slots.slice(); const r = ROLE_BY_ID[e.target.value]; slots[p.slot] = { role: r.id, duty: r.duties.includes(cur.duty) ? cur.duty : r.duties[0] }; setTac({ ...tac, slots }); }}>
+              {rolesFor(sh.pos).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+            <select className="input" style={{ width: 92, padding: '4px 6px' }} value={cur.duty} onChange={(e) => { const slots = tac.slots.slice(); slots[p.slot] = { ...cur, duty: e.target.value as any }; setTac({ ...tac, slots }); }}>
+              {(ROLE_BY_ID[cur.role]?.duties || ['S']).map((d) => <option key={d} value={d}>{DUTY_RU[d]}</option>)}
+            </select>
+          </div>
+        );
+      })}
       <label className="row small"><input type="checkbox" checked={ti.shootOnSight} onChange={(e) => set({ shootOnSight: e.target.checked })} /> Бить при любой возможности</label>
       <label className="row small"><input type="checkbox" checked={ti.counter} onChange={(e) => set({ counter: e.target.checked })} /> Контратаки</label>
       <label className="row small"><input type="checkbox" checked={ti.timeWaste} onChange={(e) => set({ timeWaste: e.target.checked })} /> Тянуть время</label>
